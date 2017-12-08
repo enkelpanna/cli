@@ -1,0 +1,42 @@
+{
+  "name": "@enkelpanna/cli",
+  "version": "0.1.0",
+  "description": "Command line version of Enkelpanna, the easy to use static site generator.",
+  "main": "build/index.js",
+  "bin": {
+    "enkelpanna": "build/index.js"
+  },
+  "types": "build/index.d.ts",
+  "scripts": {
+    "dev": "watch 'npm run build' source",
+    "prebuild": "tslint --config .vscode/tslint.json --project source/tsconfig.json",
+    "build": "tsc -p source",
+    "pretest": "npm run build",
+    "test": "node build/index.test.js",
+    "test:watch": "watch 'npm test' source",
+    "prepublish": "npm run build",
+    "release": "np",
+    "clean": "rm -rf build node_modules"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enkelpanna/cli.git"
+  },
+  "author": "Simon Mika (simon@mika.se)",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/enkelpanna/cli/issues"
+  },
+  "homepage": "https://github.com/enkelpanna/cli#readme",
+  "devDependencies": {
+    "@types/node": "^8.0.57",
+    "tslint": "^5.8.0",
+    "typescript": "^2.6.2",
+    "np": "^2.13.1",
+    "watch": "^1.0.2"
+  },
+  "dependencies": {
+    "@cogneco/mend": "^1.2.10",
+    "async-file": "^2.0.2"
+  }
+}

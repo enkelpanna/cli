@@ -1,0 +1,25 @@
+
+{
+	"editor.tabSize": 2,
+	"editor.renderWhitespace": "boundary",
+	"editor.insertSpaces": false,
+	"files.trimTrailingWhitespace": true,
+	"search.exclude": {
+		"node_modules": true,
+		"build": true,
+		"typings": true,
+		".vscode": true
+	},
+	"files.exclude": {
+		"node_modules": true,
+		"build": true,
+		"**/.git": true
+	},
+	"tslint.enable": true,
+	"tslint.run": "onType",
+	"tslint.configFile": "./.vscode/tslint.json",
+	"licenser.license": "MIT",
+	"licenser.projectName": "Mend",
+	"licenser.author": "Simon Mika <simon@mika.se>",
+	"licenser.useSingleLineStyle": true
+}
