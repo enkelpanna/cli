@@ -1,34 +1,33 @@
 #!/usr/bin/env node
-import { Parser, Generators, Filesystem, SiteTree } from "@enkelpanna/core"
+import { Site, Parser, Generator, Filesystem } from "@enkelpanna/core"
 import * as fs from "async-file"
 import { resolve, extname as getExtension } from "path"
 
 export class Program {
-	private parser = new Parser([])
-	private generators = new Generators({})
 	readonly version = "0.1.0"
 	constructor(private commands: (string | undefined)[]) {
 		this.commands = this.commands.slice(2)
 	}
-	run() {
-		let command: string | undefined
-		while (command = this.commands.shift())
-			this.runHelper(command, this.commands)
-	}
-	private async runHelper(command: string | undefined, commands: (string | undefined)[]) {
-		switch (command) {
+	async run() {
+		switch (this.commands.length > 0 && this.commands[0]) {
 			default:
 				{
-					let generator = command ? this.generators.get(command) : undefined
-					if (!generator) {
-						generator = this.generators
-						commands.push(command)
-					}
-					const content = await this.load(commands.pop() || await fs.realpath(__filename))
-					if (content instanceof Filesystem.Folder) {
-						const site = new SiteTree.Site(await this.parser.parse(content), { title: "" })
-						const result = generator.generate(site)
-						await this.save(commands.pop() || await fs.realpath(__filename), result)
+					const input = await fs.realpath(__filename)
+					const output = resolve(input, "public")
+					const site = await Site.create(JSON.parse(await fs.readFile(resolve(input, "site.json"))), this.fetchParser, this.fetchGenerator)
+					const root = await this.load(input, site.extensions)
+					if (root instanceof Filesystem.Folder) {
+						site.load(root)
+						if (this.commands.length > 0)
+							for (const name of this.commands) {
+								const result = await site.generate(name)
+								if (result)
+									this.save(resolve(output, name), result)
+							}
+					} else {
+						const result = await site.generate()
+						if (result)
+							this.save(output, result)
 					}
 				}
 				break
@@ -40,14 +39,20 @@ export class Program {
 				break
 		}
 	}
-	private async load(path: string): Promise<Filesystem.Node | undefined> {
-		const status = await fs.stat(path)
-		return status.isDirectory ? new Filesystem.Folder(async () => (await Promise.all((await fs.readdir(path)).map(node => ({ name: node, node: this.load(resolve(path, node))})))).reduce<{ [name: string]: Filesystem.Node }>((r, n) => { r[n.name] = n.node; return r }, {})) :
-			status.isFile ? this.loadFile(path) :	undefined
+	private async fetchParser(locator: string): Promise<Parser> {
+		return Promise.reject("")
 	}
-	private loadFile(path: string): Filesystem.File | undefined {
+	private async fetchGenerator(locator: string): Promise<Generator> {
+		return Promise.reject("")
+	}
+	private async load(path: string, extensions: { [extension: string]: "ascii" | "base64" | "binary" | "hex" | "ucs2" | "utf16le" | "utf8" | undefined }): Promise<Filesystem.Node | undefined> {
+		const status = await fs.stat(path)
+		return status.isDirectory ? new Filesystem.Folder(async () => (await Promise.all((await fs.readdir(path)).map(node => ({ name: node, node: this.load(resolve(path, node), extensions)})))).reduce<{ [name: string]: Filesystem.Node }>((r, n) => { r[n.name] = n.node; return r }, {})) :
+			status.isFile ? this.loadFile(path, extensions) :	undefined
+	}
+	private loadFile(path: string, extensions: { [extension: string]: "ascii" | "base64" | "binary" | "hex" | "ucs2" | "utf16le" | "utf8" | undefined }): Filesystem.File | undefined {
 		let result: Filesystem.File | undefined
-		const encoding = this.parser.extensions[getExtension(path)]
+		const encoding = extensions[getExtension(path)]
 		switch (encoding) {
 			case "base64":
 			case "binary":
@@ -63,6 +68,8 @@ export class Program {
 		return result
 	}
 	private async save(path: string, node: Filesystem.Node): Promise<void> {
+		if (await fs.exists(path))
+			await fs.delete(path)
 		if (node instanceof Filesystem.Folder) {
 			await fs.createDirectory(path)
 			const children = await node.children
@@ -77,5 +84,5 @@ export class Program {
 }
 
 const program = new Program(process.argv)
-program.run()
+program.run().then(() => process.exit())
 console.log("enkelpanna " + program.version)
