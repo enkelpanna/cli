@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Parser, Generators, Filesystem, SiteTree } from "@enkelpanna/core"
 import * as fs from "async-file"
-import { resolve } from "path"
+import { resolve, extname as getExtension } from "path"
 
 export class Program {
 	private parser = new Parser([])
@@ -10,23 +10,10 @@ export class Program {
 	constructor(private commands: (string | undefined)[]) {
 		this.commands = this.commands.slice(2)
 	}
-	private async load(path: string): Promise<Filesystem.Node | undefined> {
-		const status = await fs.stat(path)
-		return status.isDirectory ? new Filesystem.Folder(async () => (await Promise.all((await fs.readdir(path)).map(node => ({ name: node, node: this.load(resolve(path, node))})))).reduce<{ [name: string]: Filesystem.Node }>((r, n) => { r[n.name] = n.node; return r }, {})) :
-			status.isFile ? new Filesystem.File(() => fs.readFile(path, { encoding: "utf8" }), () => fs.readFile(path, { encoding: "binary" })) :
-			undefined
-	}
-	private async save(path: string, node: Filesystem.Node): Promise<void> {
-		if (node instanceof Filesystem.Folder) {
-			await fs.createDirectory(path)
-			const children = await node.children
-			for (const name in children)
-				if (children.hasOwnProperty(name))
-					this.save(resolve(path, name), children[name])
-		} else if (node instanceof (Filesystem.File))
-			await fs.writeTextFile(path, await node.textContent, "utf8")
-// 		else if (node instanceof (Filesystem.File))
-// 			await fs.writeFile(path, await node.binaryContent, "binary")
+	run() {
+		let command: string | undefined
+		while (command = this.commands.shift())
+			this.runHelper(command, this.commands)
 	}
 	private async runHelper(command: string | undefined, commands: (string | undefined)[]) {
 		switch (command) {
@@ -53,11 +40,39 @@ export class Program {
 				break
 		}
 	}
-	run() {
-		let command: string | undefined
-		while (command = this.commands.shift()) {
-			this.runHelper(command, this.commands)
+	private async load(path: string): Promise<Filesystem.Node | undefined> {
+		const status = await fs.stat(path)
+		return status.isDirectory ? new Filesystem.Folder(async () => (await Promise.all((await fs.readdir(path)).map(node => ({ name: node, node: this.load(resolve(path, node))})))).reduce<{ [name: string]: Filesystem.Node }>((r, n) => { r[n.name] = n.node; return r }, {})) :
+			status.isFile ? this.loadFile(path) :	undefined
+	}
+	private loadFile(path: string): Filesystem.File | undefined {
+		let result: Filesystem.File | undefined
+		const encoding = this.parser.extensions[getExtension(path)]
+		switch (encoding) {
+			case "base64":
+			case "binary":
+			case "hex":
+				result = new Filesystem.TextFile(() => fs.readFile(path, { encoding }))
+			case "ascii":
+			case "ucs2":
+			case "utf16le":
+			case "utf8":
+				result = new Filesystem.BinaryFile(async () => Uint8Array.from(await fs.readFile(path, { encoding })))
+				break
 		}
+		return result
+	}
+	private async save(path: string, node: Filesystem.Node): Promise<void> {
+		if (node instanceof Filesystem.Folder) {
+			await fs.createDirectory(path)
+			const children = await node.children
+			for (const name in children)
+				if (children.hasOwnProperty(name))
+					this.save(resolve(path, name), children[name])
+		} else if (node instanceof Filesystem.TextFile)
+			await fs.writeTextFile(path, await node.content, "utf8")
+		else if (node instanceof Filesystem.BinaryFile)
+			await fs.writeFile(path, Buffer.from((await node.content).buffer), "binary")
 	}
 }
 
