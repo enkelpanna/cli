@@ -47,7 +47,7 @@ export class Program {
 	}
 	private async load(path: string, extensions: { [extension: string]: "ascii" | "base64" | "binary" | "hex" | "ucs2" | "utf16le" | "utf8" | undefined }): Promise<Filesystem.Node | undefined> {
 		const status = await fs.stat(path)
-		return status.isDirectory ? new Filesystem.Folder(async () => (await Promise.all((await fs.readdir(path)).map(node => ({ name: node, node: this.load(resolve(path, node), extensions)})))).reduce<{ [name: string]: Filesystem.Node }>((r, n) => { r[n.name] = n.node; return r }, {})) :
+		return status.isDirectory ? new Filesystem.Folder(async () => (await Promise.all((await fs.readdir(path)).map(async node => ({ name: node, node: await this.load(resolve(path, node), extensions)})))).reduce<{ [name: string]: Filesystem.Node }>((r, n) => { if (n.node) r[n.name] = n.node; return r }, {})) :
 			status.isFile ? this.loadFile(path, extensions) :	undefined
 	}
 	private loadFile(path: string, extensions: { [extension: string]: "ascii" | "base64" | "binary" | "hex" | "ucs2" | "utf16le" | "utf8" | undefined }): Filesystem.File | undefined {
