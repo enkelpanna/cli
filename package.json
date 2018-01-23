@@ -37,7 +37,9 @@
   },
   "dependencies": {
     "@cogneco/mend": "^1.3.1",
-    "@enkelpanna/core": "^0.1.1",
+    "@enkelpanna/core": "^0.1.3",
+    "@enkelpanna/html5-generator": "^0.1.1",
+    "@enkelpanna/typeup-parser": "^0.1.1",
     "async-file": "^2.0.2"
   }
 }

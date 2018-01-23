@@ -1,0 +1,4 @@
+{
+	"parser": [ "builtin://typeup" ],
+	"generator": { "html5": "builtin://html5"}
+}

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { Site, Parser, Generator, Filesystem } from "@enkelpanna/core"
+import createHtml5Generator from "@enkelpanna/html5-generator"
+import createTypeUpParser from "@enkelpanna/typeup-parser"
 import * as fs from "async-file"
 import { resolve, extname as getExtension } from "path"
+import { cwd } from "process"
 
 export class Program {
 	readonly version = "0.1.0"
@@ -12,7 +15,7 @@ export class Program {
 		switch (this.commands.length > 0 && this.commands[0]) {
 			default:
 				{
-					const input = await fs.realpath(__filename)
+					const input = await fs.realpath(cwd())
 					const output = resolve(input, "public")
 					const site = await Site.create(JSON.parse(await fs.readFile(resolve(input, "site.json"))), this.fetchParser, this.fetchGenerator)
 					const root = await this.load(input, site.extensions)
@@ -39,11 +42,23 @@ export class Program {
 				break
 		}
 	}
-	private async fetchParser(locator: string): Promise<Parser> {
-		return Promise.reject("")
+	private fetchParser(locator: string): Promise<Parser> {
+		let result: Parser | undefined
+		switch (locator) {
+			case "builtin://typeup":
+				result = createTypeUpParser()
+				break
+		}
+		return result ? Promise.resolve(result) : Promise.reject("Can't find parser")
 	}
-	private async fetchGenerator(locator: string): Promise<Generator> {
-		return Promise.reject("")
+	private fetchGenerator(locator: string): Promise<Generator> {
+		let result: Generator | undefined
+		switch (locator) {
+			case "builtin://html5":
+				result = createHtml5Generator()
+				break
+		}
+		return result ? Promise.resolve(result) : Promise.reject("Can't find generator")
 	}
 	private async load(path: string, extensions: { [extension: string]: "ascii" | "base64" | "binary" | "hex" | "ucs2" | "utf16le" | "utf8" | undefined }): Promise<Filesystem.Node | undefined> {
 		const status = await fs.stat(path)
